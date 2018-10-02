@@ -1,0 +1,111 @@
+import java.io.*;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class InnerJoin {
+
+
+    public static  class StudentMapper extends Mapper<Object, Text, Text, Text> {
+
+        private Map<String, String> scores = new HashMap<String, String>();
+        private Configuration conf;
+
+        @Override
+        public void setup(Context context) throws IOException, InterruptedException{
+            conf = context.getConfiguration();
+            URI[] uris = Job.getInstance(conf).getCacheFiles();
+            URI uri = uris[0];
+            Path path = new Path(uri.getPath());
+
+            BufferedReader bufferedReader = new BufferedReader(new FileReader(path.getName()));
+
+            String line = null;
+            while((line = bufferedReader.readLine()) != null) {
+                String[] split = line.split(",", 2);
+                String[] scoresSplit = split[1].split(",");
+
+                if (Integer.parseInt(scoresSplit[0]) > 80 && Integer.parseInt(scoresSplit[1]) > 80  && Integer.parseInt(scoresSplit[2]) > 80) {
+                    scores.put(split[0], split[1]);
+                }
+            }
+        }
+
+
+        @Override
+        public void map(Object key, Text value, Context context) throws IOException, InterruptedException{
+            String[] row = value.toString().split(",");
+
+            String studentId = row[0];
+            String name = row[1];
+            String yearOfBirthString = row[2];
+
+            if (Integer.parseInt(yearOfBirthString) > 1989) {
+                String scoresRow = scores.get(studentId);
+         //       System.out.println("id: " + studentId + ", name: " + name + ", scores: " + scoresRow);
+                if (scoresRow != null) {
+                    context.write(new Text(studentId), new Text(name + "," + yearOfBirthString + "," + scoresRow));
+                }
+            }
+        }
+    }
+
+
+    public static HashMap<String, String> tableToHashMap(Path path) throws IOException {
+
+        HashMap<String, String> map = new HashMap<String, String>();
+
+        BufferedReader bufferedReader = new BufferedReader(new FileReader(path.toString()));
+
+        String line = null;
+        while((line = bufferedReader.readLine()) != null) {
+            String[] split = line.split(",", 2);
+            String[] scoresSplit = split[1].split(",");
+
+            if (Integer.parseInt(scoresSplit[0]) > 80 && Integer.parseInt(scoresSplit[1]) > 80  && Integer.parseInt(scoresSplit[2]) > 80) {
+                map.put(split[0], split[1]);
+            }
+        }
+        return map;
+    }
+    public static void main(String[] args) throws Exception {
+        Configuration conf = new Configuration();
+
+        Job job = Job.getInstance(conf, "Join");
+        job.addCacheFile(new Path(args[1]).toUri());
+        job.setJarByClass(InnerJoin.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(NullWritable.class);
+        job.setMapperClass(StudentMapper.class);
+        //  job.setMapperClass(ScoreMapper.class);
+      //  job.setReducerClass(JoinReducer.class);
+     //   job.setCombinerClass(JoinReducer.class);
+
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+
+       // MultipleInputs.addInputPath(job, new Path(args[0]), TextInputFormat.class, StudentMapper.class);
+       // MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, ScoreMapper.class);
+      //  job.setInputFormatClass(TextInputFormat.class);
+
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(Text.class);
+
+        FileOutputFormat.setOutputPath(job, new Path(args[2]));
+        long start = System.currentTimeMillis();
+        int exit = job.waitForCompletion(true) ? 0 : 1;
+        System.out.println(System.currentTimeMillis() - start);
+        System.exit(exit);
+    }
+
+
+}
