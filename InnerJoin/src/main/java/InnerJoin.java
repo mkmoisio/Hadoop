@@ -30,9 +30,12 @@ public class InnerJoin {
           //  URI[] uris = Job.getInstance(conf).getCacheFiles();
             //Path path = new Path(uris[0].getPath());
 
-            DataInputStream stream = new DataInputStream(new FileInputStream(conf.get("filter")));
-           filter.readFields(stream);
-           stream.close();
+            DataInputStream dataInputStream = new DataInputStream(
+                    new FileInputStream(context.getConfiguration().get("filter")));
+
+
+            filter.readFields(dataInputStream);
+            dataInputStream.close();
 
         }
 

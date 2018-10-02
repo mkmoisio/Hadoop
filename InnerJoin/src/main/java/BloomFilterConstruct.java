@@ -1,4 +1,5 @@
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
@@ -35,7 +36,7 @@ public class BloomFilterConstruct {
         }
     }
 
-    public static class BloomReducer extends Reducer<NullWritable, BloomFilter, BloomFilter, NullWritable> {
+    public static class BloomReducer extends Reducer<NullWritable, BloomFilter, NullWritable, NullWritable> {
 
         private BloomFilter filter = new BloomFilter(100000, 3, 1);
 
@@ -48,8 +49,12 @@ public class BloomFilterConstruct {
 
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException {
-            context.write(filter, NullWritable.get());
+
+
+            filter.write(FileSystem.get(context.getConfiguration()).create(new Path("/tmp/filter.bloom")));
         }
+
+
     }
 
     public static void main(String[] args) throws Exception {
